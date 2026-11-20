@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vivace — Black November WhatsApp assistant prototype</title>
+<style>
+  :root{
+    --page-bg:#1a1714;
+    --page-bg-2:#0b0a09;
+    --page-ink:#f1e9dc;
+    --page-ink-soft:#a99a84;
+    --frame:#050505;
+
+    --gold:#c9a227;
+    --gold-soft:#e6cf8a;
+    --brown:#4a2919;
+
+    --wa-header:#f0f2f5;
+    --wa-panel:#ffffff;
+    --wa-wallpaper:#efeae2;
+    --wa-in:#ffffff;
+    --wa-out:#d9fdd3;
+    --wa-ink:#111b21;
+    --wa-ink-soft:#667781;
+    --wa-teal:#008069;
+    --wa-green:#00a884;
+    --wa-blue:#53bdeb;
+    --wa-line:#e9edef;
+    --wa-shadow:0 1px .5px rgba(11,20,26,.13);
+  }
+
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    background:var(--page-bg);
+    background-image:radial-gradient(120% 90% at 50% 0%, #2a221a 0%, var(--page-bg-2) 100%);
+    color:var(--page-ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:14px;padding:22px 16px;
+  }
+
+  .stage-note{
+    display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;
+    max-width:420px;width:100%;
+    font-size:13px;color:var(--page-ink-soft);
+  }
+  .stage-note strong{color:var(--gold-soft);font-weight:600;font-size:14px;letter-spacing:.01em}
+  .reset{
+    margin-left:auto;border:1px solid currentColor;background:transparent;color:var(--page-ink-soft);
+    font:inherit;font-size:12px;padding:4px 10px;border-radius:999px;cursor:pointer;
+  }
+  #reset{margin-left:0}
+  #resumeBtn + #reset, .reset:only-of-type{margin-left:auto}
+  .reset:hover{color:var(--gold-soft)}
+  .reset:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+
+  /* ---------- phone ---------- */
+  .phone{
+    width:min(420px,100%);
+    height:min(820px,82vh);
+    background:var(--frame);
+    border-radius:38px;
+    padding:11px;
+    box-shadow:0 30px 60px -22px rgba(0,0,0,.8), 0 0 0 1px rgba(201,162,39,.25) inset;
+    flex:0 0 auto;
+  }
+  .screen{
+    position:relative;overflow:hidden;
+    height:100%;border-radius:28px;background:var(--wa-panel);
+    display:flex;flex-direction:column;
+    color:var(--wa-ink);
+  }
+
+  /* ---------- chat header ---------- */
+  .bar{
+    flex:0 0 auto;display:flex;align-items:center;gap:10px;
+    padding:10px 12px;background:var(--wa-header);
+    border-bottom:1px solid rgba(0,0,0,.06);
+  }
+  .bar svg{display:block;fill:#54656f}
+  .icon-btn{border:0;background:transparent;padding:6px;border-radius:50%;cursor:pointer;line-height:0}
+  .icon-btn:hover{background:rgba(0,0,0,.05)}
+  .icon-btn:focus-visible{outline:2px solid var(--wa-green);outline-offset:1px}
+  .avatar{
+    width:40px;height:40px;border-radius:50%;flex:0 0 auto;
+    background:radial-gradient(circle at 30% 25%,#2b2b2b,#000 70%);
+    box-shadow:0 0 0 1.5px var(--gold) inset;
+    color:var(--gold);font-family:"Cormorant Garamond",Georgia,"Times New Roman",serif;
+    font-weight:600;font-size:22px;line-height:1;
+    display:grid;place-items:center;
+  }
+  .who{min-width:0;flex:1}
+  .who .name{font-size:16px;font-weight:600;line-height:1.2;display:flex;align-items:center;gap:5px;min-width:0}
+  .who .name span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .who .name .verified{width:15px;height:15px;flex:0 0 auto}
+  .who .state{font-size:12.5px;color:var(--wa-ink-soft);line-height:1.35;height:17px}
+
+  /* ---------- message area ---------- */
+  .thread{
+    flex:1 1 auto;overflow-y:auto;overscroll-behavior:contain;
+    padding:14px 8px 10px;
+    background-color:var(--wa-wallpaper);
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%23000' stroke-opacity='.045' stroke-width='2'%3E%3Ccircle cx='22' cy='24' r='7'/%3E%3Cpath d='M70 16v16M62 24h16'/%3E%3Cpath d='M96 62c0 6-5 10-10 10s-10-4-10-10 10-16 10-16 10 10 10 16z'/%3E%3Cpath d='M18 84h18M27 75v18'/%3E%3Crect x='58' y='96' width='20' height='11' rx='5.5'/%3E%3Cpath d='M40 52c8-6 16-6 24 0'/%3E%3C/g%3E%3C/svg%3E");
+    display:flex;flex-direction:column;gap:2px;
+  }
+  .day{
+    align-self:center;margin:4px 0 10px;
+    background:#e2f0f8;color:#54656f;font-size:11.5px;font-weight:500;
+    padding:5px 12px;border-radius:7px;box-shadow:var(--wa-shadow);
+  }
+  .notice{
+    align-self:center;max-width:88%;text-align:center;margin:0 0 10px;
+    background:#fff3c4;color:#55611f;font-size:11.5px;line-height:1.5;
+    padding:7px 12px;border-radius:7px;box-shadow:var(--wa-shadow);
+  }
+  .notice.sys{background:#e7edf0;color:#54656f}
+  .row{display:flex;margin:1px 0;padding:0 4px}
+  .row.in{justify-content:flex-start}
+  .row.out{justify-content:flex-end}
+  .stack{max-width:82%;display:flex;flex-direction:column}
+  .bubble{
+    position:relative;background:var(--wa-in);border-radius:8px;
+    padding:6px 9px 7px;box-shadow:var(--wa-shadow);
+    font-size:14.6px;line-height:1.42;white-space:pre-wrap;word-wrap:break-word;
+  }
+  .row.in .bubble{border-top-left-radius:0}
+  .row.out .bubble{background:var(--wa-out);border-top-right-radius:0}
+  .row.in .bubble::after,.row.out .bubble::after{content:"";position:absolute;top:0;width:9px;height:13px}
+  .row.in .bubble::after{left:-8px;background:var(--wa-in);clip-path:polygon(100% 0,0 0,100% 100%)}
+  .row.out .bubble::after{right:-8px;background:var(--wa-out);clip-path:polygon(0 0,100% 0,0 100%)}
+  .bubble b{font-weight:600}
+  .bubble s{color:var(--wa-ink-soft)}
+  .bubble .meta{
+    float:right;margin:8px -2px -3px 8px;
+    font-size:11px;color:var(--wa-ink-soft);display:flex;align-items:center;gap:3px;
+  }
+  .tick{width:15px;height:11px;fill:var(--wa-ink-soft)}
+  .tick.read{fill:var(--wa-blue)}
+
+  /* offer header card: stands in for the image header of an interactive message */
+  .card{
+    white-space:normal;margin:-2px -5px 7px;border-radius:6px;overflow:hidden;
+    background:
+      radial-gradient(130% 90% at 100% 0%,rgba(201,162,39,.28),transparent 55%),
+      linear-gradient(160deg,#111 0%,#000 70%);
+    color:#f5ecd6;padding:14px 14px 13px;position:relative;
+    border:1px solid rgba(201,162,39,.35);
+  }
+  .card .kick{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--gold)}
+  .card .nm{font-family:"Cormorant Garamond",Georgia,"Times New Roman",serif;font-size:26px;line-height:1.05;margin:5px 0 8px;font-weight:600}
+  .card .price{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+  .card .now{font-size:19px;font-weight:700;color:var(--gold-soft)}
+  .card .was{font-size:12.5px;color:#a99a84;text-decoration:line-through}
+  .card .save{
+    display:inline-block;margin-top:9px;font-size:11px;font-weight:600;letter-spacing:.04em;
+    background:var(--gold);color:#111;padding:3px 8px;border-radius:999px;
+  }
+  .card .where{position:absolute;top:13px;right:14px;font-size:10px;color:#a99a84;letter-spacing:.06em}
+
+  .hero{
+    white-space:normal;margin:-2px -5px 7px;border-radius:6px;overflow:hidden;
+    background:linear-gradient(160deg,#111,#000 75%);color:#f5ecd6;
+    padding:16px 14px;text-align:center;border:1px solid rgba(201,162,39,.35);
+  }
+  .hero .big{font-family:"Cormorant Garamond",Georgia,"Times New Roman",serif;font-size:30px;font-weight:600;letter-spacing:.02em;line-height:1}
+  .hero .big em{font-style:normal;color:var(--gold)}
+  .hero .small{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold-soft);margin-top:7px}
+
+  /* attached interactive buttons */
+  .actions{background:var(--wa-in);border-radius:0 0 8px 8px;box-shadow:var(--wa-shadow);margin-top:1px;overflow:hidden}
+  .actions button{
+    width:100%;border:0;border-top:1px solid var(--wa-line);background:transparent;
+    color:#027eb5;font:inherit;font-size:14.2px;font-weight:500;
+    padding:11px 10px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;
+  }
+  .actions button:first-child{border-top:0}
+  .actions button:hover{background:#f5f6f6}
+  .actions button:focus-visible{outline:2px solid var(--wa-green);outline-offset:-3px}
+  .actions svg{fill:#027eb5;width:15px;height:15px}
+
+  /* typing */
+  .dots{display:flex;gap:4px;padding:4px 2px}
+  .dots i{width:7px;height:7px;border-radius:50%;background:#9aa6ab;animation:blink 1.2s infinite}
+  .dots i:nth-child(2){animation-delay:.2s}
+  .dots i:nth-child(3){animation-delay:.4s}
+  @keyframes blink{0%,60%,100%{opacity:.35}30%{opacity:1}}
+
+  /* location card */
+  .map{
+    width:200px;height:110px;border-radius:6px;margin-bottom:5px;
+    background:
+      linear-gradient(105deg,rgba(255,255,255,.55) 0 2px,transparent 2px 100%) 0 0/60px 60px,
+      linear-gradient(15deg,rgba(255,255,255,.55) 0 2px,transparent 2px 100%) 0 0/48px 48px,
+      linear-gradient(160deg,#cfe3c8,#e4e0cf 55%,#cddbe4);
+    position:relative;
+  }
+  .map::after{
+    content:"";position:absolute;left:50%;top:44%;width:13px;height:13px;margin-left:-6.5px;
+    border-radius:50% 50% 50% 0;transform:rotate(-45deg);
+    background:#e02f2f;box-shadow:0 3px 0 -1px rgba(0,0,0,.18);
+  }
+
+  /* ---------- composer ---------- */
+  .composer{flex:0 0 auto;display:flex;align-items:flex-end;gap:6px;padding:7px 8px 9px;background:var(--wa-header)}
+  .field{flex:1;display:flex;align-items:center;gap:8px;background:#fff;border-radius:20px;padding:7px 10px;min-height:40px}
+  .field input{flex:1;border:0;outline:0;font:inherit;font-size:15px;color:var(--wa-ink);background:transparent;min-width:0}
+  .send{width:40px;height:40px;border-radius:50%;border:0;background:var(--wa-green);display:grid;place-items:center;cursor:pointer;flex:0 0 auto}
+  .send svg{fill:#fff;width:20px;height:20px}
+  .send:focus-visible{outline:2px solid #fff;outline-offset:-4px}
+
+  /* ---------- list sheet ---------- */
+  .sheet-wrap{position:absolute;inset:0;display:none;z-index:5;background:rgba(11,20,26,.4)}
+  .sheet-wrap.open{display:block}
+  .sheet{
+    position:absolute;left:0;right:0;bottom:0;max-height:72%;
+    background:#fff;border-radius:14px 14px 0 0;overflow:auto;
+    transform:translateY(100%);animation:rise .22s ease forwards;
+  }
+  @keyframes rise{to{transform:translateY(0)}}
+  .sheet header{
+    position:sticky;top:0;background:#fff;display:flex;align-items:center;gap:10px;
+    padding:14px 16px;border-bottom:1px solid var(--wa-line);font-weight:600;font-size:15px;
+  }
+  .sheet header .icon-btn{margin-left:auto}
+  .sheet .opt{
+    width:100%;text-align:left;border:0;border-bottom:1px solid var(--wa-line);background:#fff;
+    font:inherit;padding:12px 16px;cursor:pointer;
+  }
+  .sheet .opt:hover{background:#f5f6f6}
+  .sheet .opt:focus-visible{outline:2px solid var(--wa-green);outline-offset:-3px}
+  .sheet .opt b{display:block;font-size:14.6px;font-weight:500;color:var(--wa-ink)}
+  .sheet .opt span{display:block;font-size:12.8px;color:var(--wa-ink-soft);margin-top:2px}
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition:none !important}
+  }
+  @media (max-width:560px){
+    body{padding:0;gap:0;justify-content:flex-start}
+    .stage-note{padding:10px 14px;max-width:none}
+    .phone{width:100%;height:calc(100dvh - 44px);border-radius:0;padding:0}
+    .screen{border-radius:0}
+  }
+</style>
+</head>
+<body>
+
+<div class="stage-note">
+  <strong>Vivace · Black November</strong>
+  <span>WhatsApp prototype</span>
+  <span style="margin-left:auto;display:flex;gap:6px">
+    <button class="reset" id="resumeBtn" type="button" hidden>Resume assistant</button>
+    <button class="reset" id="reset" type="button">Restart chat</button>
+  </span>
+</div>
+
+<div class="phone">
+  <div class="screen">
+
+    <div class="bar">
+      <button class="icon-btn" type="button" aria-label="Back">
+        <svg viewBox="0 0 24 24" width="22" height="22"><path d="M20 11H7.8l5.6-5.6L12 4l-8 8 8 8 1.4-1.4L7.8 13H20v-2z"/></svg>
+      </button>
+      <div class="avatar" aria-hidden="true">V</div>
+      <div class="who">
+        <div class="name"><span>Vivace Dermatology &amp; Wellness</span>
+          <svg class="verified" viewBox="0 0 24 24" aria-label="Business account"><path fill="#00a884" d="M12 1.5 14.6 4l3.5-.4 1 3.4 3.2 1.6-1.4 3.2 1.4 3.2-3.2 1.6-1 3.4-3.5-.4L12 22.5 9.4 20l-3.5.4-1-3.4L1.7 15.4l1.4-3.2-1.4-3.2 3.2-1.6 1-3.4 3.5.4L12 1.5z"/><path fill="#fff" d="m10.8 15.3-3-3 1.3-1.3 1.7 1.7 4.1-4.1 1.3 1.3-5.4 5.4z"/></svg>
+        </div>
+        <div class="state" id="presence">online</div>
+      </div>
+      <button class="icon-btn" type="button" aria-label="Voice call">
+        <svg viewBox="0 0 24 24" width="20" height="20"><path d="M6.6 10.8a15 15 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.2.4 2.4.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.4 0 .8-.2 1l-2.3 2.2z"/></svg>
+      </button>
+      <button class="icon-btn" type="button" aria-label="More options">
+        <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+      </button>
+    </div>
+
+    <div class="thread" id="thread" role="log" aria-live="polite" aria-label="Chat with Vivace"></div>
+
+    <form class="composer" id="composer" autocomplete="off">
+      <div class="field">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="#54656f" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-3.5 7a1.3 1.3 0 1 1 0 2.6 1.3 1.3 0 0 1 0-2.6zm7 0a1.3 1.3 0 1 1 0 2.6 1.3 1.3 0 0 1 0-2.6zM12 18c-2.3 0-4.3-1.4-5.1-3.4h10.2C16.3 16.6 14.3 18 12 18z"/></svg>
+        <input id="input" type="text" placeholder="Message" aria-label="Type a message">
+        <svg viewBox="0 0 24 24" width="21" height="21" fill="#54656f" aria-hidden="true"><path d="M16.5 6v11.5a4.5 4.5 0 0 1-9 0V5a3 3 0 0 1 6 0v11.5a1.5 1.5 0 0 1-3 0V6H9v10.5a3 3 0 0 0 6 0V5a4.5 4.5 0 0 0-9 0v12.5a6 6 0 0 0 12 0V6h-1.5z"/></svg>
+      </div>
+      <button class="send" type="submit" aria-label="Send">
+        <svg viewBox="0 0 24 24"><path d="M2.3 21 23 12 2.3 3 2.3 10l14.8 2L2.3 14z"/></svg>
+      </button>
+    </form>
+
+    <div class="sheet-wrap" id="sheetWrap">
+      <div class="sheet" role="dialog" aria-modal="true" aria-label="Menu">
+        <header>
+          <span id="sheetTitle">Vivace</span>
+          <button class="icon-btn" type="button" id="sheetClose" aria-label="Close">
+            <svg viewBox="0 0 24 24" width="20" height="20"><path d="m19 6.4-1.4-1.4-5.6 5.6L6.4 5 5 6.4l5.6 5.6L5 17.6 6.4 19l5.6-5.6 5.6 5.6 1.4-1.4-5.6-5.6z"/></svg>
+          </button>
+        </header>
+        <div id="sheetBody"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function(){
+  const thread    = document.getElementById('thread');
+  const input     = document.getElementById('input');
+  const composer  = document.getElementById('composer');
+  const presence  = document.getElementById('presence');
+  const sheetWrap = document.getElementById('sheetWrap');
+  const sheetBody = document.getElementById('sheetBody');
+  const sheetTitle= document.getElementById('sheetTitle');
+
+  const clock = () => new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+  const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  const fmt = s => esc(s).replace(/\*(.+?)\*/g, '<b>$1</b>').replace(/~(.+?)~/g, '<s>$1</s>');
+  const scroll = () => { thread.scrollTop = thread.scrollHeight; };
+  const day = d => d.toLocaleDateString([], {weekday:'long'});
+
+  /* ---------- campaign ---------- */
+  // Offers run to the end of 30 November.
+  const now0 = new Date();
+  const END = new Date(now0.getFullYear(), 10, 30, 23, 59, 59);
+  function daysLeft(){
+    const ms = END - new Date();
+    if(ms < 0) return {over:true, text:'The Black November offers ended on 30 November.'};
+    const d = Math.ceil(ms / 86400000);
+    return {over:false, n:d, text: d <= 1 ? '*Last day* — offers end tonight.' : '*' + d + ' days left* — offers end 30 November.'};
+  }
+
+  /* ---------- clinic hours: Mon-Sat 9:00am-6:00pm, closed Sunday ---------- */
+  const HOURS = {open:9, close:18, from:'9:00am', text:'9:00am to 6:00pm'};
+  const HOURS_LINE = "We're open Monday to Saturday, " + HOURS.text + ". Closed Sundays.";
+  const isOpenDay = d => d.getDay() !== 0;
+
+  function openState(){
+    const now = new Date();
+    const hr = now.getHours() + now.getMinutes() / 60;
+    if(isOpenDay(now) && hr >= HOURS.open && hr < HOURS.close) return {open:true};
+    if(isOpenDay(now) && hr < HOURS.open) return {open:false, when:'from ' + HOURS.from + ' today'};
+    const d = new Date(now);
+    for(let i = 1; i <= 7; i++){
+      d.setDate(d.getDate() + 1);
+      if(isOpenDay(d)) return {open:false, when:'from ' + HOURS.from + (i === 1 ? ' tomorrow' : ' on ' + day(d))};
+    }
+    return {open:false, when:'during clinic hours'};
+  }
+  const replyWindow = () => {
+    const st = openState();
+    return st.open ? "Someone from the team will reply here shortly." : "We're closed right now, so the team will reply " + st.when + ".";
+  };
+  function openDays(n){
+    const out = [], d = new Date();
+    while(out.length < n){ d.setDate(d.getDate() + 1); if(isOpenDay(d)) out.push(new Date(d)); }
+    return out;
+  }
+  const ref = () => 'VBN-' + Math.floor(40000 + Math.random()*9000);
+
+  /* ---------- branches and offers ---------- */
+  const CLINICS = {
+    parklands:{name:'Parklands', full:'Vivace Parklands', addr:'Park Medical Centre, 3rd Parklands Avenue, Nairobi', phone:'+254 116 766 666'},
+    riverside:{name:'Riverside', full:'Vivace Riverside', addr:'The Cube, 1st Floor, Riverside Drive, Nairobi', phone:'+254 116 766 666'},
+    nakuru:   {name:'Nakuru',    full:'Vivace Nakuru',    addr:'Golden Life Mall, Nakuru', phone:'+254 118 766 666'}
+  };
+  const REGIONS = {
+    nbi:{name:'Nairobi', where:'Parklands & Riverside', clinics:['parklands','riverside'], offers:['vshape','micro','dp','laser']},
+    nku:{name:'Nakuru',  where:'Golden Life Mall',      clinics:['nakuru'],                offers:['vshape','micro','hydra','laser']}
+  };
+
+  const OFFERS = {
+    vshape:{
+      title:'V-Shape Pro', kick:'Body sculpting', now:'KSh 199,000', was:'KSh 250,000', save:'You save KSh 51,000',
+      desc:'Body sculpting · KSh 199,000, was KSh 250,000',
+      body:"*Sculpted. Tighter. Confident.*\n\nOur full non-surgical body contouring programme, planned by our medical team to target stubborn fat, tighten skin and tone muscle.\n\n• 3 months of medically supervised weight management included\n• Lose up to 8 inches\n\n_Individual results may vary. All treatments are done under medical supervision._"
+    },
+    micro:{
+      title:'Microneedling', kick:'Dermapen 4 skin renewal', now:'Pay for 2, get 1 free', was:'', save:'You save KSh 35,000',
+      desc:'Dermapen 4 · Pay for 2 sessions, get the 3rd free',
+      body:"*Restore your glow.*\n\nBook a course of three microneedling sessions on the Dermapen 4 and pay for two. Good for texture, fine lines, pores and acne scarring — your doctor plans the course at your consultation."
+    },
+    dp:{
+      title:'DP Synergist', kick:'Skin treatment', now:'KSh 19,000', was:'KSh 28,000', save:'You save KSh 9,000',
+      desc:'Six weeks to your best skin · KSh 19,000, was KSh 28,000',
+      body:"*Six weeks to your best skin.*\n\nA multi-step facial on the DP Synergist platform that cleanses, hydrates and refines in one visit, for skin that looks fresher, smoother and more even."
+    },
+    hydra:{
+      title:'HydraFacial', kick:'Facial', now:'KSh 15,000', was:'KSh 17,500', save:'You save KSh 2,500',
+      desc:'Let your skin glow · KSh 15,000, was KSh 17,500',
+      body:"*Let your skin glow.*\n\nA multi-step facial that cleanses, exfoliates, clears congested pores and floods the skin with hydration in one visit.\n\n• Deep hydration\n• Brighter-looking skin\n• Smoother texture\n• Healthy natural glow"
+    },
+    laser:{
+      title:'Laser hair removal', kick:'V-Lase permanent hair reduction', now:'20% off', was:'', save:'Book now, do it anytime',
+      desc:'V-Lase · 20% off · Pay now, have it done anytime',
+      body:"*Goodbye razor, hello laser.*\n\nNo more shaving. No more waxing. Just smooth skin. Book and pay in November to lock in 20% off, then have your sessions done whenever suits you."
+    }
+  };
+
+  /* ---------- rendering ---------- */
+  function stamp(read){
+    return '<span class="meta">' + clock() +
+      (read ? '<svg class="tick read" viewBox="0 0 18 14"><path d="M17 1.2 7.6 12.4 6.3 11 15.7 0zM11.9 1.2 2.5 12.4.7 10.2l1.3-1.1 1.8 2.1L10.6 0z"/></svg>' : '') +
+      '</span>';
+  }
+  function push(side, html, read){
+    const row = document.createElement('div');
+    row.className = 'row ' + side;
+    row.innerHTML = '<div class="stack"><div class="bubble">' + html + stamp(read) + '</div></div>';
+    thread.appendChild(row);
+    scroll();
+    return row;
+  }
+
+  let pendingNotices = [];
+  const systemNotice = text => pendingNotices.push(text);
+  function flushNotices(){
+    pendingNotices.forEach(text => {
+      const n = document.createElement('div');
+      n.className = 'notice sys'; n.textContent = text;
+      thread.appendChild(n);
+    });
+    pendingNotices = []; scroll();
+  }
+
+  function userSays(text, read){
+    const row = push('out', fmt(text), true);
+    const tick = row.querySelector('.tick');
+    tick.classList.remove('read');
+    if(read !== false) setTimeout(() => tick.classList.add('read'), 900);
+  }
+
+  /* Cloud API limits, checked as things render so future edits stay sendable. */
+  const LIMITS = {button:20, listButton:20, rowTitle:24, rowDesc:72, section:24, rows:10, body:1024, buttons:3};
+  const over = (what, text, max) => { if(text && text.length > max) console.warn('WhatsApp limit: ' + what + ' is ' + text.length + '/' + max + ' — "' + text + '"'); };
+  function lintButtons(b){
+    if(b.length > LIMITS.buttons) console.warn('WhatsApp limit: ' + b.length + ' buttons, max ' + LIMITS.buttons);
+    b.forEach(x => over('button title', x.label, LIMITS.button));
+  }
+  function lintList(l){
+    over('list button', l.label, LIMITS.listButton);
+    over('section title', l.title, LIMITS.section);
+    if(l.rows.length > LIMITS.rows) console.warn('WhatsApp limit: ' + l.rows.length + ' rows, max ' + LIMITS.rows);
+    l.rows.forEach(r => { over('row title', r.title, LIMITS.rowTitle); over('row description', r.desc, LIMITS.rowDesc); });
+  }
+
+  function attachButtons(row, buttons){
+    lintButtons(buttons);
+    const box = document.createElement('div');
+    box.className = 'actions';
+    buttons.forEach(b => {
+      const el = document.createElement('button');
+      el.type = 'button';
+      el.innerHTML = '<svg viewBox="0 0 24 24"><path d="M10 17.5 4.5 12l1.4-1.4 4.1 4.1 8.1-8.2L19.5 8z"/></svg>' + esc(b.label);
+      el.addEventListener('click', () => { disable(box); send(b.label, b.value); });
+      box.appendChild(el);
+    });
+    row.querySelector('.stack').appendChild(box);
+  }
+  function attachList(row, list, auto){
+    lintList(list);
+    const box = document.createElement('div');
+    box.className = 'actions';
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.innerHTML = '<svg viewBox="0 0 24 24"><path d="M3 5h18v2H3zm0 6h18v2H3zm0 6h18v2H3z"/></svg>' + esc(list.label);
+    el.addEventListener('click', () => openSheet(list, box));
+    box.appendChild(el);
+    row.querySelector('.stack').appendChild(box);
+    if(auto) setTimeout(() => openSheet(list, box), 280);
+  }
+  function disable(box){
+    box.querySelectorAll('button').forEach(b => { b.disabled = true; b.style.color = '#9aa6ab'; b.style.cursor = 'default'; b.querySelector('svg').style.fill = '#9aa6ab'; });
+  }
+  function openSheet(list, box){
+    sheetTitle.textContent = list.title || 'Vivace';
+    sheetBody.innerHTML = '';
+    list.rows.forEach(r => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'opt';
+      b.innerHTML = '<b>' + esc(r.title) + '</b>' + (r.desc ? '<span>' + esc(r.desc) + '</span>' : '');
+      b.addEventListener('click', () => { closeSheet(); disable(box); send(r.title, r.value); });
+      sheetBody.appendChild(b);
+    });
+    sheetWrap.classList.add('open');
+    sheetBody.querySelector('button').focus();
+  }
+  function closeSheet(){ sheetWrap.classList.remove('open'); }
+  document.getElementById('sheetClose').addEventListener('click', closeSheet);
+  sheetWrap.addEventListener('click', e => { if(e.target === sheetWrap) closeSheet(); });
+
+  /* ---------- bot speaking ---------- */
+  let busy = false;
+  function botSay(messages){
+    busy = true;
+    let delay = 0;
+    messages.forEach((m, i) => {
+      const think = m.wait != null ? m.wait : Math.min(1500, 450 + m.text.length * 9);
+      setTimeout(() => { presence.textContent = 'typing…'; typing(true); }, delay);
+      delay += think;
+      setTimeout(() => {
+        typing(false);
+        presence.textContent = 'online';
+        const row = push('in', bodyOf(m));
+        if(m.buttons) attachButtons(row, m.buttons);
+        if(m.list) attachList(row, m.list, !m.quiet);
+        if(i === messages.length - 1){ busy = false; input.focus({preventScroll:true}); }
+        scroll();
+      }, delay);
+      delay += 120;
+    });
+  }
+
+  function cardHtml(id, region){
+    const o = OFFERS[id];
+    return '<div class="card">' +
+      (region ? '<span class="where">' + esc(REGIONS[region].name.toUpperCase()) + '</span>' : '') +
+      '<div class="kick">Black November · ' + esc(o.kick) + '</div>' +
+      '<div class="nm">' + esc(o.title) + '</div>' +
+      '<div class="price"><span class="now">' + esc(o.now) + '</span>' + (o.was ? '<span class="was">' + esc(o.was) + '</span>' : '') + '</div>' +
+      '<span class="save">' + esc(o.save) + '</span>' +
+    '</div>';
+  }
+
+  function bodyOf(m){
+    over('message body', m.text, LIMITS.body);
+    let html = '';
+    if(m.hero) html += '<div class="hero"><div class="big">BLACK <em>NOVEMBER</em></div><div class="small">Vivace offers · until 30 Nov</div></div>';
+    if(m.card) html += cardHtml(m.card, m.region);
+    if(m.map)  html += '<div class="map" role="img" aria-label="Map showing the clinic location"></div>';
+    html += fmt(m.text).replace(/_(.+?)_/g, '<i>$1</i>');
+    return html;
+  }
+
+  let typingRow = null;
+  function typing(on){
+    if(on && !typingRow){
+      typingRow = document.createElement('div');
+      typingRow.className = 'row in';
+      typingRow.innerHTML = '<div class="stack"><div class="bubble"><div class="dots"><i></i><i></i><i></i></div></div></div>';
+      thread.appendChild(typingRow); scroll();
+    } else if(!on && typingRow){ typingRow.remove(); typingRow = null; }
+  }
+
+  /* ---------- menus ---------- */
+  const MENU = {
+    label:'Choose an option',
+    title:'How can we help?',
+    rows:[
+      {title:'Black November offers', desc:'Body, skin and laser offers, until 30 November', value:'offers'},
+      {title:'Claim an offer',        desc:'Book your slot at the November price',          value:'book'},
+      {title:'How it works',          desc:'Consultation first, then your treatment',       value:'how'},
+      {title:'Our clinics',           desc:'Parklands, Riverside and Nakuru',               value:'visit'},
+      {title:'Talk to our team',      desc:'A person replies during clinic hours',          value:'human'}
+    ]
+  };
+  const NAV_BACK = {label:'Back', value:'nav:back'};
+  const NAV_MENU = {label:'Main menu', value:'menu'};
+  const navList = list => Object.assign({}, list, {
+    rows: list.rows.concat([
+      {title:'Back',      desc:'Return to the previous step', value:'nav:back'},
+      {title:'Main menu', desc:'Start again from the top',    value:'menu'}
+    ])
+  });
+
+  const regionButtons = prefix => [
+    {label:'Nairobi', value:prefix + 'nbi'},
+    {label:'Nakuru',  value:prefix + 'nku'},
+    NAV_MENU
+  ];
+
+  const offerList = (region, claiming) => {
+    const other = region === 'nbi' ? 'nku' : 'nbi';
+    return navList({
+      label: claiming ? 'Choose your offer' : 'See the offers',
+      title: REGIONS[region].name + ' offers',
+      rows: REGIONS[region].offers.map(id => ({
+        title: OFFERS[id].title, desc: OFFERS[id].desc,
+        value: (claiming ? 'claim:' : 'offer:') + id
+      })).concat([{
+        title: 'See ' + REGIONS[other].name + ' offers',
+        desc: REGIONS[other].where + ' has its own offers',
+        value: (claiming ? 'bookregion:' : 'region:') + other
+      }])
+    });
+  };
+
+  const VISIT = "*Vivace Dermatology & Wellness Center*\n\n" +
+    "*Parklands* — " + CLINICS.parklands.addr + "\n" +
+    "*Riverside* — " + CLINICS.riverside.addr + "\n" +
+    "*Nakuru* — " + CLINICS.nakuru.addr + "\n\n" +
+    "Monday to Saturday, 9:00am to 6:00pm\nSundays and public holidays, closed\n\n" +
+    "📞 Nairobi " + CLINICS.parklands.phone + "\n📞 Nakuru " + CLINICS.nakuru.phone + "\n✉️ info@vivace.co.ke";
+
+  const HOW = "*How to claim your Black November offer*\n\n" +
+    "*1. Choose your offer* — pick it here and tell us your branch.\n" +
+    "*2. We confirm your slot* — the team confirms your time, usually within the hour during clinic times.\n" +
+    "*3. Lock in the November price* — book before 30 November and the price is yours.\n\n" +
+    "Every offer starts with a consultation, so the treatment is planned around your skin and your goals.";
+
+  const greeting = () => {
+    const st = openState(), dl = daysLeft();
+    const status = st.open
+      ? "The team is in today, so a person can take over whenever you ask."
+      : "We're closed at the moment — the team replies " + st.when + ". I can still hold an offer for you now.";
+    return [{
+      hero:true,
+      text:"Hello 👋 Welcome to *Vivace Dermatology & Wellness Center*. I'm the automated assistant.\n\n" +
+           "Our *Black November* offers are on now — body sculpting, skin treatments and laser hair removal at special prices. " + dl.text + "\n\n" + status,
+      wait:700, quiet:true, list:MENU
+    }];
+  };
+
+  /* ---------- screens ---------- */
+  const booking = {};
+  const state = {mode:'menu', paused:false, region:null};
+  let trail = ['menu'];
+
+  const slotList = () => {
+    const d = openDays(3);
+    const s = [
+      {label: day(d[0]) + ', 10:00am', note:'Morning clinic'},
+      {label: day(d[1]) + ', 3:00pm',  note:'Afternoon clinic'},
+      {label: day(d[2]) + (d[2].getDay() === 6 ? ', 11:00am' : ', 12:00pm'), note: d[2].getDay() === 6 ? 'Saturday clinic' : 'Midday slot'}
+    ];
+    return navList({
+      label:'Pick a time', title:'Open this week',
+      rows: s.map(x => ({title:x.label, desc:x.note + ' at ' + CLINICS[booking.clinic].name, value:'slot:' + x.label}))
+        .concat([{title:'Another time', desc:'Tell us what suits you', value:'slot:other'}])
+    });
+  };
+
+  function whyClosed(text){
+    const t = text.toLowerCase();
+    if(/\b(sun|sunday|jumapili)\b/.test(t)) return "We're closed on Sundays, so I can't book that. " + HOURS_LINE + "\n\nWhat other day and time suits you?";
+    if(/\b(night|usiku|midnight)\b/.test(t)) return "That's outside our hours. " + HOURS_LINE + "\n\nWhat time would work?";
+    const m = t.match(/(\d{1,2})(?:[:.](\d{2}))?\s*(a\.?m|p\.?m)?/);
+    if(m){
+      let h = +m[1];
+      const min = m[2] ? +m[2] : 0, ap = m[3];
+      if(ap && ap[0] === 'p' && h < 12) h += 12;
+      if(ap && ap[0] === 'a' && h === 12) h = 0;
+      if(!ap && h <= 7) h += 12;
+      const hr = h + min / 60;
+      if(hr < HOURS.open || hr > HOURS.close) return "We're open " + HOURS.text + ", so that time won't work.\n\nWhat else would suit you?";
+    }
+    return null;
+  }
+
+  function screen(token){
+    if(token === 'menu'){ state.mode = 'menu'; return [{text:"What would you like to do?", list:MENU}]; }
+
+    if(token === 'offers'){
+      state.mode = 'browse';
+      return [{
+        text:"Our Black November offers are different in each city. Which branch is closest to you?\n\n*Nairobi* — Parklands and Riverside\n*Nakuru* — Golden Life Mall",
+        buttons:regionButtons('region:')
+      }];
+    }
+
+    if(token.indexOf('region:') === 0){
+      const r = token.slice(7);
+      state.region = r; state.mode = 'browse';
+      return [{
+        text:"Here are the Black November offers at our *" + REGIONS[r].where + "* " + (r === 'nbi' ? 'clinics' : 'clinic in Nakuru') + ". Tap one to see the details. " + daysLeft().text,
+        list:offerList(r, false)
+      }];
+    }
+
+    if(token.indexOf('offer:') === 0){
+      const id = token.slice(6);
+      state.mode = 'browse';
+      return [{
+        card:id, region:state.region,
+        text:OFFERS[id].body + "\n\nBook before 30 November to lock in this price.",
+        buttons:[{label:'Claim this offer', value:'claim:' + id}, NAV_BACK, NAV_MENU]
+      }];
+    }
+
+    if(token === 'how'){ state.mode = 'browse'; return [{text:HOW, buttons:[{label:'See the offers', value:'offers'}, NAV_BACK, NAV_MENU]}]; }
+
+    if(token === 'visit'){ state.mode = 'browse'; return [{map:true, text:VISIT, buttons:[{label:'See the offers', value:'offers'}, NAV_BACK, NAV_MENU]}]; }
+
+    if(token === 'human'){
+      state.mode = 'human';
+      setPaused(true);
+      systemNotice('Automated replies paused. Waiting for the team to reply.');
+      return [{
+        text:"I've passed this to our team. " + replyWindow() + "\n\n" + HOURS_LINE,
+        wait:700,
+        buttons:[{label:'Back to assistant', value:'nav:resume'}, NAV_MENU]
+      }];
+    }
+
+    /* ---- booking ---- */
+    if(token === 'book-region'){
+      state.mode = 'book-region';
+      return [{text:"Let's get your offer booked. Which branch would you like to visit?", buttons:regionButtons('bookregion:')}];
+    }
+
+    if(token.indexOf('bookregion:') === 0){
+      const r = token.slice(11);
+      state.region = r; state.mode = 'book-offer';
+      return [{text:"Which " + REGIONS[r].name + " offer would you like to claim?", list:offerList(r, true)}];
+    }
+
+    if(token === 'book'){
+      state.mode = 'book-name';
+      return [{
+        card:booking.offer, region:state.region,
+        text:"Great choice. What name should the booking be under?",
+        buttons:[NAV_BACK, NAV_MENU]
+      }];
+    }
+
+    if(token === 'book-clinic'){
+      state.mode = 'book-clinic';
+      return [{
+        text:"Thank you, " + booking.name + ". Which Nairobi clinic suits you?\n\n*Parklands* — " + CLINICS.parklands.addr + "\n*Riverside* — " + CLINICS.riverside.addr,
+        buttons:[{label:'Parklands', value:'clinic:parklands'}, {label:'Riverside', value:'clinic:riverside'}, NAV_BACK]
+      }];
+    }
+
+    if(token === 'book-time'){
+      state.mode = 'book-time';
+      return [{
+        text:(state.region === 'nku' ? "Thank you, " + booking.name + ". " : "") +
+             "Here's what's open at *" + CLINICS[booking.clinic].full + "* this week.\n\nYour first visit starts with a consultation, so the doctor can plan the treatment around you.",
+        list:slotList()
+      }];
+    }
+
+    if(token === 'book-custom'){
+      state.mode = 'book-custom';
+      return [{text:"No problem. Type the day and time that suits you, for example \"Saturday morning\".\n\n" + HOURS_LINE, buttons:[NAV_BACK, NAV_MENU]}];
+    }
+
+    if(token === 'book-confirm'){
+      state.mode = 'book-confirm';
+      const o = OFFERS[booking.offer];
+      return [{
+        text:"Here's your booking:\n\n*Name* " + booking.name +
+             "\n*Offer* " + o.title + " — " + o.now + (o.was ? " (was " + o.was + ")" : "") +
+             "\n*Clinic* " + CLINICS[booking.clinic].full +
+             "\n*When* " + booking.slot + "\n\nShall I confirm it?",
+        buttons:[{label:'Confirm', value:'confirm'}, NAV_BACK, NAV_MENU]
+      }];
+    }
+
+    if(token === 'booked'){
+      state.mode = 'menu';
+      const o = OFFERS[booking.offer], c = CLINICS[booking.clinic];
+      return [{
+        text:"Booked ✅ Your Black November price is held.\n\n*" + booking.ref + "*\n" + booking.name + "\n" + o.title + " — " + o.now + "\n" + c.full + ", " + c.addr + "\n" + booking.slot +
+             "\n\nThe team will confirm your slot here. Please come 10 minutes early. Reply CANCEL any time to release the slot.",
+        buttons:[{label:'Claim another offer', value:'book'}, NAV_MENU]
+      }];
+    }
+
+    state.mode = 'menu';
+    return [{text:"What would you like to do?", list:MENU}];
+  }
+
+  const go   = token => { trail.push(token); return screen(token); };
+  const back = ()    => { if(trail.length > 1) trail.pop(); return screen(trail[trail.length - 1]); };
+  const home = ()    => { trail = ['menu']; return screen('menu'); };
+
+  /* ---------- router ---------- */
+  // Typing is only expected on these steps. Anywhere else, a typed message means
+  // the menu didn't fit, so a person takes over and the bot stays quiet.
+  const TYPED_STEPS = {'book-name':1, 'book-custom':1};
+
+  function handoff(){
+    setPaused(true);
+    state.mode = 'human';
+    const st = openState();
+    systemNotice('Automated replies paused. ' + (st.open ? 'The message is waiting for the team.' : 'Clinic closed — the team picks up ' + st.when + '.'));
+    return [];
+  }
+  function resume(){ setPaused(false); systemNotice('Assistant resumed.'); }
+  function setPaused(on){ state.paused = on; document.getElementById('resumeBtn').hidden = !on; }
+
+  function startClaim(id){
+    booking.offer = id;
+    delete booking.clinic; delete booking.slot;
+    return go('book');
+  }
+
+  function route(text, value){
+    const raw = (value || text || '').trim();
+    const t = raw.toLowerCase();
+    const tapped = !!value;
+
+    if(t === 'nav:resume'){ resume(); return screen(trail[trail.length - 1]); }
+
+    if(!tapped){
+      if(/^cancel$/.test(t)){
+        trail = ['menu']; state.mode = 'menu'; setPaused(false);
+        return [{text:"Your slot has been released. Nothing else is needed from you.", buttons:[{label:'Claim an offer', value:'book'}, NAV_MENU]}];
+      }
+      if(state.paused) return [];
+      if(!TYPED_STEPS[state.mode]) return handoff();
+    } else if(state.paused){
+      resume();
+    }
+
+    if(t === 'nav:back') return back();
+    if(t === 'menu')     return home();
+
+    switch(state.mode){
+      case 'book-name':
+        if(!raw) break;
+        booking.name = raw.split(' ').slice(0,3).join(' ');
+        if(state.region === 'nku'){ booking.clinic = 'nakuru'; return go('book-time'); }
+        return go('book-clinic');
+
+      case 'book-clinic':
+        if(t.indexOf('clinic:') === 0){ booking.clinic = t.slice(7); return go('book-time'); }
+        break;
+
+      case 'book-time':
+        if(t === 'slot:other') return go('book-custom');
+        if(t.indexOf('slot:') === 0){ booking.slot = raw.slice(5); return go('book-confirm'); }
+        break;
+
+      case 'book-custom': {
+        const shut = whyClosed(raw);
+        if(shut) return [{text:shut, buttons:[NAV_BACK, NAV_MENU]}];
+        booking.slot = raw;
+        return go('book-confirm');
+      }
+
+      case 'book-confirm':
+        if(t === 'confirm'){ booking.ref = ref(); trail = ['menu']; return go('booked'); }
+        break;
+    }
+
+    /* taps */
+    if(t.indexOf('region:') === 0)     return go(t);
+    if(t.indexOf('bookregion:') === 0) return go(t);
+    if(t.indexOf('offer:') === 0)      return go(t);
+    if(t.indexOf('claim:') === 0)      return startClaim(t.slice(6));
+
+    if(t === 'book'){
+      delete booking.offer;
+      return state.region ? go('bookregion:' + state.region) : go('book-region');
+    }
+    if(t === 'offers') return state.region ? go('region:' + state.region) : go('offers');
+    if(t === 'how')    return go('how');
+    if(t === 'visit')  return go('visit');
+    if(t === 'human')  return go('human');
+
+    return handoff();
+  }
+
+  /* ---------- input ---------- */
+  const SILENT = {'menu':1, 'nav:back':1, 'nav:resume':1};
+  function send(text, value){
+    if(busy || (!text && !value)) return;
+    const out = route(text, value);
+    if(!SILENT[value]) userSays(text, !state.paused);
+    flushNotices();
+    if(!out || !out.length) return;
+    setTimeout(() => botSay(out), 250);
+  }
+  composer.addEventListener('submit', e => {
+    e.preventDefault();
+    const v = input.value.trim();
+    if(!v) return;
+    input.value = '';
+    send(v, null);
+  });
+
+  /* ---------- boot ---------- */
+  function boot(){
+    thread.innerHTML = '';
+    state.mode = 'menu'; state.region = null;
+    setPaused(false);
+    pendingNotices = []; trail = ['menu'];
+    Object.keys(booking).forEach(k => delete booking[k]);
+    busy = false;
+    const d = document.createElement('div');
+    d.className = 'day'; d.textContent = 'TODAY';
+    thread.appendChild(d);
+    const n = document.createElement('div');
+    n.className = 'notice';
+    n.textContent = 'This is a business account. Messages are kept by the clinic and are not medical advice. Individual results may vary.';
+    thread.appendChild(n);
+    botSay(greeting());
+  }
+  document.getElementById('resumeBtn').addEventListener('click', () => {
+    if(!state.paused) return;
+    const out = route(null, 'nav:resume');
+    flushNotices();
+    botSay(out);
+  });
+  document.getElementById('reset').addEventListener('click', boot);
+  boot();
+})();
+</script>
+</body>
+</html>
