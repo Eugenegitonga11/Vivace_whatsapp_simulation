@@ -336,7 +336,12 @@
   /* ---------- clinic hours: Mon-Sat 9:00am-6:00pm, closed Sunday ---------- */
   const HOURS = {open:9, close:18, from:'9:00am', text:'9:00am to 6:00pm'};
   const HOURS_LINE = "We're open Monday to Saturday, " + HOURS.text + ". Closed Sundays.";
-  const isOpenDay = d => d.getDay() !== 0;
+  // Kenyan public holidays (month-day). Easter dates move: add them each year.
+  const HOLIDAYS = ['01-01','05-01','06-01','10-10','10-20','12-12','12-25','12-26'];
+  const mmdd = d => String(d.getMonth() + 1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  const isOpenDay = d => d.getDay() !== 0 && HOLIDAYS.indexOf(mmdd(d)) === -1;
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const dayDate = d => day(d) + ', ' + d.getDate() + ' ' + MONTHS[d.getMonth()];
 
   function openState(){
     const now = new Date();
@@ -359,7 +364,6 @@
     while(out.length < n){ d.setDate(d.getDate() + 1); if(isOpenDay(d)) out.push(new Date(d)); }
     return out;
   }
-  const ref = () => 'VBN-' + Math.floor(40000 + Math.random()*9000);
 
   /* ---------- branches and offers ---------- */
   const CLINICS = {
@@ -517,7 +521,7 @@
   function cardHtml(id, region){
     const o = OFFERS[id];
     return '<div class="card">' +
-      (region ? '<span class="where">' + esc(REGIONS[region].name.toUpperCase()) + '</span>' : '') +
+      (region ? '<span class="where">' + esc(CLINICS[region].name.toUpperCase()) + '</span>' : '') +
       '<div class="kick">Black November · ' + esc(o.kick) + '</div>' +
       '<div class="nm">' + esc(o.title) + '</div>' +
       '<div class="price"><span class="now">' + esc(o.now) + '</span>' + (o.was ? '<span class="was">' + esc(o.was) + '</span>' : '') + '</div>' +
@@ -566,14 +570,21 @@
     ])
   });
 
-  const regionButtons = prefix => [
-    {label:'Nairobi', value:prefix + 'nbi'},
-    {label:'Nakuru',  value:prefix + 'nku'},
-    NAV_MENU
-  ];
+  // four choices is more than the 3-button limit, so the branch picker is a list
+  const regionOf = c => c === 'nakuru' ? 'nku' : 'nbi';
+  const branchList = prefix => ({
+    label:'Choose a branch',
+    title:'Choose your branch',
+    rows:[
+      {title:'Parklands Nairobi',       value:prefix + 'parklands'},
+      {title:'Riverside Nairobi',       value:prefix + 'riverside'},
+      {title:'Golden Life Mall Nakuru', value:prefix + 'nakuru'},
+      {title:'Main menu',               value:'menu'}
+    ]
+  });
+  const branchName = c => c === 'nakuru' ? 'Golden Life Mall, Nakuru' : CLINICS[c].name + ', Nairobi';
 
   const offerList = (region, claiming) => {
-    const other = region === 'nbi' ? 'nku' : 'nbi';
     return navList({
       label: claiming ? 'Choose your offer' : 'See the offers',
       title: REGIONS[region].name + ' offers',
@@ -581,9 +592,9 @@
         title: OFFERS[id].title, desc: OFFERS[id].desc,
         value: (claiming ? 'claim:' : 'offer:') + id
       })).concat([{
-        title: 'See ' + REGIONS[other].name + ' offers',
-        desc: REGIONS[other].where + ' has its own offers',
-        value: (claiming ? 'bookregion:' : 'region:') + other
+        title: 'Change branch',
+        desc: 'See the offers at another Vivace branch',
+        value: claiming ? 'nav:bookbranch' : 'nav:branch'
       }])
     });
   };
@@ -597,7 +608,7 @@
 
   const HOW = "*How to claim your Black November offer*\n\n" +
     "*1. Choose your offer* — pick it here and tell us your branch.\n" +
-    "*2. We confirm your slot* — the team confirms your time, usually within the hour during clinic times.\n" +
+    "*2. We confirm your slot* — the team confirms your day and time, usually within the hour during clinic times.\n" +
     "*3. Lock in the November price* — book before 30 November and the price is yours.\n\n" +
     "Every offer starts with a consultation, so the treatment is planned around your skin and your goals.";
 
@@ -619,34 +630,17 @@
   const state = {mode:'menu', paused:false, region:null};
   let trail = ['menu'];
 
-  const slotList = () => {
-    const d = openDays(3);
-    const s = [
-      {label: day(d[0]) + ', 10:00am', note:'Morning clinic'},
-      {label: day(d[1]) + ', 3:00pm',  note:'Afternoon clinic'},
-      {label: day(d[2]) + (d[2].getDay() === 6 ? ', 11:00am' : ', 12:00pm'), note: d[2].getDay() === 6 ? 'Saturday clinic' : 'Midday slot'}
-    ];
-    return navList({
-      label:'Pick a time', title:'Open this week',
-      rows: s.map(x => ({title:x.label, desc:x.note + ' at ' + CLINICS[booking.clinic].name, value:'slot:' + x.label}))
-        .concat([{title:'Another time', desc:'Tell us what suits you', value:'slot:other'}])
-    });
-  };
+  // the next six days the clinic is open; the team confirms the exact time
+  const slotList = () => navList({
+    label:'Pick a day', title:'Choose a day',
+    rows: openDays(6).map(d => ({title:dayDate(d), desc:'Vivace ' + CLINICS[booking.clinic].name, value:'slot:' + dayDate(d)}))
+      .concat([{title:'Another day', desc:'Tell us which day suits you', value:'slot:other'}])
+  });
 
   function whyClosed(text){
     const t = text.toLowerCase();
-    if(/\b(sun|sunday|jumapili)\b/.test(t)) return "We're closed on Sundays, so I can't book that. " + HOURS_LINE + "\n\nWhat other day and time suits you?";
-    if(/\b(night|usiku|midnight)\b/.test(t)) return "That's outside our hours. " + HOURS_LINE + "\n\nWhat time would work?";
-    const m = t.match(/(\d{1,2})(?:[:.](\d{2}))?\s*(a\.?m|p\.?m)?/);
-    if(m){
-      let h = +m[1];
-      const min = m[2] ? +m[2] : 0, ap = m[3];
-      if(ap && ap[0] === 'p' && h < 12) h += 12;
-      if(ap && ap[0] === 'a' && h === 12) h = 0;
-      if(!ap && h <= 7) h += 12;
-      const hr = h + min / 60;
-      if(hr < HOURS.open || hr > HOURS.close) return "We're open " + HOURS.text + ", so that time won't work.\n\nWhat else would suit you?";
-    }
+    if(/\b(sun|sunday|jumapili)\b/.test(t)) return "We're closed on Sundays, so I can't book that. " + HOURS_LINE + "\n\nWhich other day suits you?";
+    if(/\b(christmas|boxing day|new year)\b/.test(t)) return "We're closed on public holidays, so I can't book that.\n\nWhich other day suits you?";
     return null;
   }
 
@@ -656,16 +650,16 @@
     if(token === 'offers'){
       state.mode = 'browse';
       return [{
-        text:"Our Black November offers are different in each city. Which branch is closest to you?\n\n*Nairobi* — Parklands and Riverside\n*Nakuru* — Golden Life Mall",
-        buttons:regionButtons('region:')
+        text:"Our Black November offers are different at each branch. Which branch is closest to you?",
+        list:branchList('branch:')
       }];
     }
 
-    if(token.indexOf('region:') === 0){
-      const r = token.slice(7);
-      state.region = r; state.mode = 'browse';
+    if(token.indexOf('branch:') === 0){
+      const c = token.slice(7), r = regionOf(c);
+      booking.clinic = c; state.region = r; state.mode = 'browse';
       return [{
-        text:"Here are the Black November offers at our *" + REGIONS[r].where + "* " + (r === 'nbi' ? 'clinics' : 'clinic in Nakuru') + ". Tap one to see the details. " + daysLeft().text,
+        text:"Here are the Black November offers at our *" + branchName(c) + "* clinic. Tap one to see the details. " + daysLeft().text,
         list:offerList(r, false)
       }];
     }
@@ -674,7 +668,7 @@
       const id = token.slice(6);
       state.mode = 'browse';
       return [{
-        card:id, region:state.region,
+        card:id, region:booking.clinic,
         text:OFFERS[id].body + "\n\nBook before 30 November to lock in this price.",
         buttons:[{label:'Claim this offer', value:'claim:' + id}, NAV_BACK, NAV_MENU]
       }];
@@ -698,19 +692,19 @@
     /* ---- booking ---- */
     if(token === 'book-region'){
       state.mode = 'book-region';
-      return [{text:"Let's get your offer booked. Which branch would you like to visit?", buttons:regionButtons('bookregion:')}];
+      return [{text:"Let's get your offer booked. Which branch would you like to visit?", list:branchList('bookbranch:')}];
     }
 
-    if(token.indexOf('bookregion:') === 0){
-      const r = token.slice(11);
-      state.region = r; state.mode = 'book-offer';
-      return [{text:"Which " + REGIONS[r].name + " offer would you like to claim?", list:offerList(r, true)}];
+    if(token.indexOf('bookbranch:') === 0){
+      const c = token.slice(11), r = regionOf(c);
+      booking.clinic = c; state.region = r; state.mode = 'book-offer';
+      return [{text:"Which offer would you like to claim at *" + branchName(c) + "*?", list:offerList(r, true)}];
     }
 
     if(token === 'book'){
       state.mode = 'book-name';
       return [{
-        card:booking.offer, region:state.region,
+        card:booking.offer, region:booking.clinic,
         text:"Great choice. What name should the booking be under?",
         buttons:[NAV_BACK, NAV_MENU]
       }];
@@ -727,15 +721,15 @@
     if(token === 'book-time'){
       state.mode = 'book-time';
       return [{
-        text:(state.region === 'nku' ? "Thank you, " + booking.name + ". " : "") +
-             "Here's what's open at *" + CLINICS[booking.clinic].full + "* this week.\n\nYour first visit starts with a consultation, so the doctor can plan the treatment around you.",
+        text:"Thank you, " + booking.name + ". " +
+             "Which day would you like to come to *" + CLINICS[booking.clinic].full + "*? The team will confirm the exact time with you.\n\nYour first visit starts with a consultation, so the doctor can plan the treatment around you.",
         list:slotList()
       }];
     }
 
     if(token === 'book-custom'){
       state.mode = 'book-custom';
-      return [{text:"No problem. Type the day and time that suits you, for example \"Saturday morning\".\n\n" + HOURS_LINE, buttons:[NAV_BACK, NAV_MENU]}];
+      return [{text:"No problem. Type the day or date that suits you, for example \"Saturday 5 December\".\n\n" + HOURS_LINE, buttons:[NAV_BACK, NAV_MENU]}];
     }
 
     if(token === 'book-confirm'){
@@ -745,7 +739,7 @@
         text:"Here's your booking:\n\n*Name* " + booking.name +
              "\n*Offer* " + o.title + " — " + o.now + (o.was ? " (was " + o.was + ")" : "") +
              "\n*Clinic* " + CLINICS[booking.clinic].full +
-             "\n*When* " + booking.slot + "\n\nShall I confirm it?",
+             "\n*Day* " + booking.slot + "\n\nShall I confirm it?",
         buttons:[{label:'Confirm', value:'confirm'}, NAV_BACK, NAV_MENU]
       }];
     }
@@ -754,8 +748,8 @@
       state.mode = 'menu';
       const o = OFFERS[booking.offer], c = CLINICS[booking.clinic];
       return [{
-        text:"Booked ✅ Your Black November price is held.\n\n*" + booking.ref + "*\n" + booking.name + "\n" + o.title + " — " + o.now + "\n" + c.full + ", " + c.addr + "\n" + booking.slot +
-             "\n\nThe team will confirm your slot here. Please come 10 minutes early. Reply CANCEL any time to release the slot.",
+        text:"Booked ✅ Your Black November price is held.\n\n*" + booking.name + "*" + "\n" + o.title + " — " + o.now + "\n" + c.full + ", " + c.addr + "\n" + booking.slot +
+             "\n\nThe team will message you here to confirm your time. Please come 10 minutes early. Reply CANCEL any time to release the slot.",
         buttons:[{label:'Claim another offer', value:'book'}, NAV_MENU]
       }];
     }
@@ -785,7 +779,7 @@
 
   function startClaim(id){
     booking.offer = id;
-    delete booking.clinic; delete booking.slot;
+    delete booking.slot;
     return go('book');
   }
 
@@ -814,8 +808,7 @@
       case 'book-name':
         if(!raw) break;
         booking.name = raw.split(' ').slice(0,3).join(' ');
-        if(state.region === 'nku'){ booking.clinic = 'nakuru'; return go('book-time'); }
-        return go('book-clinic');
+        return booking.clinic ? go('book-time') : go('book-clinic');
 
       case 'book-clinic':
         if(t.indexOf('clinic:') === 0){ booking.clinic = t.slice(7); return go('book-time'); }
@@ -834,21 +827,23 @@
       }
 
       case 'book-confirm':
-        if(t === 'confirm'){ booking.ref = ref(); trail = ['menu']; return go('booked'); }
+        if(t === 'confirm'){ trail = ['menu']; return go('booked'); }
         break;
     }
 
     /* taps */
-    if(t.indexOf('region:') === 0)     return go(t);
-    if(t.indexOf('bookregion:') === 0) return go(t);
+    if(t.indexOf('branch:') === 0)     return go(t);
+    if(t.indexOf('bookbranch:') === 0) return go(t);
+    if(t === 'nav:branch')             return go('offers');
+    if(t === 'nav:bookbranch')         return go('book-region');
     if(t.indexOf('offer:') === 0)      return go(t);
     if(t.indexOf('claim:') === 0)      return startClaim(t.slice(6));
 
     if(t === 'book'){
       delete booking.offer;
-      return state.region ? go('bookregion:' + state.region) : go('book-region');
+      return booking.clinic ? go('bookbranch:' + booking.clinic) : go('book-region');
     }
-    if(t === 'offers') return state.region ? go('region:' + state.region) : go('offers');
+    if(t === 'offers') return booking.clinic ? go('branch:' + booking.clinic) : go('offers');
     if(t === 'how')    return go('how');
     if(t === 'visit')  return go('visit');
     if(t === 'human')  return go('human');
